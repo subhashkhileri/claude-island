@@ -439,9 +439,20 @@ struct NotchView: View {
 
         // Bounce the notch when a session newly enters waitingForInput state
         if !newWaitingIds.isEmpty {
-            // Play notification sound if configured
+            // Get the sessions that just entered waitingForInput
+            let newlyWaitingSessions = waitingForInputSessions.filter { newWaitingIds.contains($0.stableId) }
+
+            // Play notification sound if the session is not actively focused
             if let soundName = AppSettings.notificationSound.soundName {
-                NSSound(named: soundName)?.play()
+                // Check if we should play sound (async check for tmux pane focus)
+                Task {
+                    let shouldPlaySound = await shouldPlayNotificationSound(for: newlyWaitingSessions)
+                    if shouldPlaySound {
+                        await MainActor.run {
+                            NSSound(named: soundName)?.play()
+                        }
+                    }
+                }
             }
 
             // Trigger bounce animation to get user's attention
@@ -461,5 +472,23 @@ struct NotchView: View {
         }
 
         previousWaitingForInputIds = currentIds
+    }
+
+    /// Determine if notification sound should play for the given sessions
+    /// Returns true if ANY session is not actively focused
+    private func shouldPlayNotificationSound(for sessions: [SessionState]) async -> Bool {
+        for session in sessions {
+            guard let pid = session.pid else {
+                // No PID means we can't check focus, assume not focused
+                return true
+            }
+
+            let isFocused = await TerminalVisibilityDetector.isSessionFocused(sessionPid: pid)
+            if !isFocused {
+                return true
+            }
+        }
+
+        return false
     }
 }
