@@ -283,11 +283,13 @@ struct NotchView: View {
                     ProcessingSpinner()
                         .matchedGeometryEffect(id: "spinner", in: activityNamespace, isSource: showClosedActivity)
                         .frame(width: viewModel.status == .opened ? 20 : sideWidth)
+                        .padding(.trailing, viewModel.status == .opened ? 0 : 4)
                 } else if hasWaitingForInput {
                     // Checkmark for waiting-for-input on the right side
                     ReadyForInputIndicatorIcon(size: 14, color: TerminalColors.green)
                         .matchedGeometryEffect(id: "spinner", in: activityNamespace, isSource: showClosedActivity)
                         .frame(width: viewModel.status == .opened ? 20 : sideWidth)
+                        .padding(.trailing, viewModel.status == .opened ? 0 : 4)
                 }
             }
         }
@@ -435,7 +437,22 @@ struct NotchView: View {
         // Bounce the notch when a session newly enters waitingForInput state
         if !newWaitingIds.isEmpty {
             // Get the sessions that just entered waitingForInput
-            let newlyWaitingSessions = waitingForInputSessions.filter { newWaitingIds.contains($0.stableId) }
+            // Filter out context resume messages - these aren't "done" states
+            let newlyWaitingSessions = waitingForInputSessions.filter { session in
+                guard newWaitingIds.contains(session.stableId) else { return false }
+                // Don't alert for context resume (ran out of context window)
+                if let lastMessage = session.lastMessage,
+                   lastMessage.hasPrefix("This session is being continued from a previous conversation") {
+                    return false
+                }
+                return true
+            }
+
+            // Skip all alerts if only context resumes remain
+            guard !newlyWaitingSessions.isEmpty else {
+                previousWaitingForInputIds = currentIds
+                return
+            }
 
             // Play notification sound if the session is not actively focused
             if let soundName = AppSettings.notificationSound.soundName {
