@@ -276,6 +276,8 @@ struct InstanceRow: View {
             } else if isWaitingForApproval {
                 InlineApprovalButtons(
                     onChat: onChat,
+                    onFocus: onFocus,
+                    hasPid: session.pid != nil,
                     onApprove: onApprove,
                     onReject: onReject
                 )
@@ -354,10 +356,13 @@ struct InstanceRow: View {
 /// Compact inline approval buttons with staggered animation
 struct InlineApprovalButtons: View {
     let onChat: () -> Void
+    let onFocus: () -> Void
+    let hasPid: Bool
     let onApprove: () -> Void
     let onReject: () -> Void
 
     @State private var showChatButton = false
+    @State private var showTerminalButton = false
     @State private var showDenyButton = false
     @State private var showAllowButton = false
 
@@ -369,6 +374,15 @@ struct InlineApprovalButtons: View {
             }
             .opacity(showChatButton ? 1 : 0)
             .scaleEffect(showChatButton ? 1 : 0.8)
+
+            // Terminal button
+            if hasPid {
+                IconButton(icon: "terminal") {
+                    onFocus()
+                }
+                .opacity(showTerminalButton ? 1 : 0)
+                .scaleEffect(showTerminalButton ? 1 : 0.8)
+            }
 
             Button {
                 onReject()
@@ -405,9 +419,12 @@ struct InlineApprovalButtons: View {
                 showChatButton = true
             }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7).delay(0.05)) {
-                showDenyButton = true
+                showTerminalButton = true
             }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7).delay(0.1)) {
+                showDenyButton = true
+            }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7).delay(0.15)) {
                 showAllowButton = true
             }
         }

@@ -21,6 +21,7 @@ struct NotchView: View {
     @StateObject private var activityCoordinator = NotchActivityCoordinator.shared
     @State private var previousPendingIds: Set<String> = []
     @State private var previousWaitingForInputIds: Set<String> = []
+    @State private var previousApprovalToolIds: Set<String> = []  // Track tool_use_ids to detect new permissions
     @State private var waitingForInputTimestamps: [String: Date] = [:]  // sessionId -> when it entered waitingForInput
     @State private var isVisible: Bool = false
     @State private var isHovering: Bool = false
@@ -203,6 +204,7 @@ struct NotchView: View {
         .onChange(of: sessionMonitor.instances) { _, instances in
             handleProcessingChange()
             handleWaitingForInputChange(instances)
+            handlePermissionRequestChange(instances)
         }
     }
 
@@ -484,6 +486,31 @@ struct NotchView: View {
         }
 
         previousWaitingForInputIds = currentIds
+    }
+
+    private func handlePermissionRequestChange(_ instances: [SessionState]) {
+        // Get all current tool_use_ids from sessions waiting for approval
+        var currentToolIds = Set<String>()
+        for instance in instances {
+            if case .waitingForApproval(let context) = instance.phase {
+                currentToolIds.insert(context.toolUseId)
+            }
+        }
+
+        // Detect new permission requests
+        let newToolIds = currentToolIds.subtracting(previousApprovalToolIds)
+
+        if !newToolIds.isEmpty && viewModel.status == .closed {
+            // New permission request - auto-expand the notch
+            viewModel.notchOpen(reason: .notification)
+
+            // Play notification sound if configured
+            if let soundName = AppSettings.notificationSound.soundName {
+                NSSound(named: soundName)?.play()
+            }
+        }
+
+        previousApprovalToolIds = currentToolIds
     }
 
     /// Determine if notification sound should play for the given sessions
