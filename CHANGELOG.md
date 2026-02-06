@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-02-06 - Merged Upstream PRs & Fixes
+
+### PR #37 - Fix: notification sound playing when subagents complete
+- **Author:** akdoan1
+- **File:** `claude-island-state.py`
+- SubagentStop no longer triggers false "task complete" notification sounds
+- Event is now ignored entirely to avoid race condition with main session's Stop event
+
+### PR #40 - Feature: add session state dots to minimized island bar
+- **Author:** akdoan1
+- **Files:** `SessionStore.swift`, `NotchView.swift`, `NotchHeaderView.swift`
+- Colored dots in collapsed notch bar show each session's state
+- Blue = waiting for approval, Orange = processing, Green = ready
+- Infers session phase from conversation history on load
+
+### Fix: notch stays expanded after terminal permission approval
+- **File:** `SessionStore.swift`
+- When a permission was approved via terminal keyboard, `PostToolUse` updated the tool status but never transitioned the session phase away from `.waitingForApproval`
+- The notch now properly collapses after terminal-approved permissions
+
+### Reviewed & Skipped
+
+- **PR #43** (macOS 15.0 deployment target) - declined
+- **PR #39** (sound suppression settings) - declined due to unvetted external dependency (`OcclusionKit`)
+
+---
+
 ## 2025-01-14 - Merged Upstream PRs
 
 Merged 8 open PRs from upstream repository (https://github.com/farouqaldori/claude-island):

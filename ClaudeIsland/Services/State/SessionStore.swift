@@ -230,10 +230,12 @@ actor SessionStore {
                 session.toolTracker.completeTool(id: toolUseId, success: true)
                 // Update chatItem status - tool completed (possibly approved via terminal)
                 // Only update if still waiting for approval or running
+                var wasWaitingForApproval = false
                 for i in 0..<session.chatItems.count {
                     if session.chatItems[i].id == toolUseId,
                        case .toolCall(var tool) = session.chatItems[i].type,
                        tool.status == .waitingForApproval || tool.status == .running {
+                        wasWaitingForApproval = tool.status == .waitingForApproval
                         tool.status = .success
                         session.chatItems[i] = ChatHistoryItem(
                             id: toolUseId,
@@ -241,6 +243,25 @@ actor SessionStore {
                             timestamp: session.chatItems[i].timestamp
                         )
                         break
+                    }
+                }
+
+                // If the tool was approved via terminal, transition session phase
+                if wasWaitingForApproval {
+                    if let nextPending = findNextPendingTool(in: session, excluding: toolUseId) {
+                        let newPhase = SessionPhase.waitingForApproval(PermissionContext(
+                            toolUseId: nextPending.id,
+                            toolName: nextPending.name,
+                            toolInput: nil,
+                            receivedAt: nextPending.timestamp
+                        ))
+                        if session.phase.canTransition(to: newPhase) {
+                            session.phase = newPhase
+                        }
+                    } else if case .waitingForApproval = session.phase {
+                        if session.phase.canTransition(to: .processing) {
+                            session.phase = .processing
+                        }
                     }
                 }
             }

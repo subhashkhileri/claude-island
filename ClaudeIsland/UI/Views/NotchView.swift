@@ -528,6 +528,12 @@ struct NotchView: View {
             }
         }
 
+        // Auto-close notch when all permissions are resolved and it was opened for a notification
+        if currentToolIds.isEmpty && !previousApprovalToolIds.isEmpty
+            && viewModel.status == .opened && viewModel.openReason == .notification {
+            viewModel.notchClose()
+        }
+
         previousApprovalToolIds = currentToolIds
     }
 
